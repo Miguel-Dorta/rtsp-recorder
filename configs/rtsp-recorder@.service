@@ -1,0 +1,20 @@
+[Unit]
+Description=RTSP Recorder for %i
+Wants=network.target
+After=local-fs.target network.target
+
+[Service]
+User=camrec
+Group=camrec
+
+Environment=CAMERA_ALIAS=%i
+EnvironmentFile=/opt/etc/rtsp-recorder/%i.conf
+KillMode=process
+KillSignal=SIGINT
+TimeoutStopSec=661
+
+WorkingDirectory=/var/rec
+ExecStart=/opt/bin/rtsp-recorder
+
+[Install]
+WantedBy=multi-user.target
