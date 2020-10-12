@@ -1,0 +1,6 @@
+github.com/Miguel-Dorta/logolang v1.0.0 h1:sJFHYAinvHB6K54PJcku7AieDT0pdViIIKiYy3wKPPs=
+github.com/Miguel-Dorta/logolang v1.0.0/go.mod h1:ZGbUj/BQ6+M6FmHuXS8T2oZf2vkhRBfbiv1MsN746bI=
+github.com/jessevdk/go-flags v1.4.0 h1:4IU2WS7AumrZ/40jfhf4QVDMsQwqA7VEHozFRrGARJA=
+github.com/jessevdk/go-flags v1.4.0/go.mod h1:4FA24M0QyGHXBuZZK/XkWh8h0e1EYbRYJSGM75WSRxI=
+golang.org/x/sys v0.0.0-20190621203818-d432491b9138 h1:t8BZD9RDjkm9/h7yYN6kE8oaeov5r9aztkB7zKA5Tkg=
+golang.org/x/sys v0.0.0-20190621203818-d432491b9138/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
