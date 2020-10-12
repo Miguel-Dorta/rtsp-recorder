@@ -15,7 +15,7 @@ func NewRecordFilepath(savingPath, alias string) (string, error) {
 	if err := os.MkdirAll(path, 0770); err != nil {
 		return "", fmt.Errorf("error creating dirs (%s): %w", path, err)
 	}
-	return filepath.Join(path, fmt.Sprintf("%d-%02d-%02d_%02d-%02d-%02d",
+	return filepath.Join(path, fmt.Sprintf("%d-%02d-%02d_%02d-%02d-%02d.mkv",
 		now.Year(), now.Month(), now.Day(), now.Hour(), now.Minute(), now.Second())), nil
 }
 
