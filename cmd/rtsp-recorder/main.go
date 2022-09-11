@@ -4,7 +4,6 @@ import (
 	"fmt"
 	log "github.com/Miguel-Dorta/logolang"
 	"github.com/Miguel-Dorta/rtsp-recorder/pkg"
-	"github.com/Miguel-Dorta/rtsp-recorder/pkg/mainLoop"
 	"github.com/jessevdk/go-flags"
 	"os"
 	"strings"
@@ -53,7 +52,11 @@ func logCriticalf(format string, v ...interface{}) {
 }
 
 func main() {
-	recDuration := time.Minute * time.Duration(args.RecTimeMin)
-	timeout := time.Second * time.Duration(args.RecTimeoutSec)
-	os.Exit(mainLoop.Start(args.Alias, args.SavingPath, args.URL, recDuration, timeout, args.Verbose))
+	pkg.Conf.Alias = args.Alias
+	pkg.Conf.ClosingTimeout = time.Second * time.Duration(args.RecTimeoutSec)
+	pkg.Conf.Path = args.SavingPath
+	pkg.Conf.RecordingDuration = time.Minute * time.Duration(args.RecTimeMin)
+	pkg.Conf.Url = args.URL
+	pkg.Conf.Verbose = args.Verbose
+	os.Exit(pkg.Main())
 }
