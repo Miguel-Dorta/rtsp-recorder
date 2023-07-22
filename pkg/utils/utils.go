@@ -15,7 +15,7 @@ func NewRecordFilepath(savingPath, alias string) (string, error) {
 	if err := os.MkdirAll(path, 0770); err != nil {
 		return "", fmt.Errorf("error creating dirs (%s): %w", path, err)
 	}
-	return filepath.Join(path, fmt.Sprintf("%d-%02d-%02d_%02d-%02d-%02d.mkv",
+	return filepath.Join(path, fmt.Sprintf("%d-%02d-%02d_%02d-%02d-%02d",
 		now.Year(), now.Month(), now.Day(), now.Hour(), now.Minute(), now.Second())), nil
 }
 
@@ -29,9 +29,16 @@ func NewChannelWithTimeout(d time.Duration) chan struct{} {
 	return c
 }
 
+func TernaryOperator[T any](cond bool, a, b T) T {
+	if cond {
+		return a
+	}
+	return b
+}
+
 func itoaTwoChars(i int) string {
 	if i > 9 {
 		return strconv.Itoa(i)
 	}
-	return "0"+strconv.Itoa(i)
+	return "0" + strconv.Itoa(i)
 }

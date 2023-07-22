@@ -2,8 +2,9 @@ package pkg
 
 import (
 	"fmt"
-	log "github.com/Miguel-Dorta/logolang"
 	"github.com/Miguel-Dorta/rtsp-recorder/pkg/ffmpeg"
+	"github.com/Miguel-Dorta/rtsp-recorder/pkg/http_push"
+	"github.com/Miguel-Dorta/rtsp-recorder/pkg/log"
 	"github.com/Miguel-Dorta/rtsp-recorder/pkg/utils"
 	"golang.org/x/sys/unix"
 	"os"
@@ -23,58 +24,63 @@ type config struct {
 var Conf config
 
 // Main does the main logic of the application
-func Main() int {
+func Main() {
 	quit := make(chan os.Signal, 2)
 	signal.Notify(quit, unix.SIGINT, unix.SIGTERM)
 
-	i, err := start()
+	var (
+		instance          *ffmpeg.Instance
+		currentRecordPath string
+		err               error
+	)
+	instance, currentRecordPath, err = start()
 	if err != nil {
 		log.Criticalf(err.Error())
-		return 1
 	}
 
 	for {
 		select {
 		// Case: ffmpeg ends before the timeout
-		case err := <-i.ExitChan:
+		case err := <-instance.ExitChan:
+			postRecordOps(currentRecordPath, false)
 			if err != nil {
 				log.Criticalf("ffmpeg instance returned an error: %s", err)
-				return 1
 			}
-			i, err = start()
+			instance, currentRecordPath, err = start()
 			if err != nil {
 				log.Critical(err.Error())
-				return 1
 			}
 		// Case: end of the time of the recording
 		case <-utils.NewChannelWithTimeout(Conf.RecordingDuration):
 			// Start new recording before closing new one to have overlapping videos
-			i2, err := start()
+			newInstance, newRecordPath, err := start()
 			if err != nil {
+				stop(instance)
+				postRecordOps(currentRecordPath, false)
 				log.Critical(err.Error())
-				stop(i)
-				return 1
 			}
-			stop(i)
-			i = i2
+			stop(instance)
+			postRecordOps(currentRecordPath, true)
+			instance = newInstance
+			currentRecordPath = newRecordPath
 		// Case: User or system quit
 		case <-quit:
-			stop(i)
-			return 0
+			stop(instance)
+			postRecordOps(currentRecordPath, false)
 		}
 	}
 }
 
-func start() (*ffmpeg.Instance, error) {
+func start() (*ffmpeg.Instance, string, error) {
 	path, err := utils.NewRecordFilepath(Conf.Path, Conf.Alias)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
-	i, err := ffmpeg.NewInstance(Conf.Url, path, Conf.RecordingDuration, Conf.ClosingTimeout, Conf.Verbose)
+	i, err := ffmpeg.NewInstance(Conf.Url, path+".tmp.mkv", Conf.RecordingDuration, Conf.ClosingTimeout, Conf.Verbose)
 	if err != nil {
-		return nil, fmt.Errorf("error creating an ffmpeg instance: %w", err)
+		return nil, "", fmt.Errorf("error creating an ffmpeg instance: %w", err)
 	}
-	return i, nil
+	return i, path, nil
 }
 
 func stop(i *ffmpeg.Instance) {
@@ -82,4 +88,14 @@ func stop(i *ffmpeg.Instance) {
 	if err := <-i.ExitChan; err != nil {
 		log.Errorf("error stopping ffmpeg instance: %s", err)
 	}
+}
+
+func postRecordOps(recordPath string, reportOk bool) {
+	if err := os.Rename(recordPath+".tmp.mkv", recordPath+".mkv"); err != nil {
+		log.Errorf("error removing tmp extension from file '%s': %s", recordPath, err.Error())
+	}
+	if !reportOk {
+		return
+	}
+	http_push.Report(true, "")
 }

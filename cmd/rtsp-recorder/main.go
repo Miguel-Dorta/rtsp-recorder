@@ -4,6 +4,7 @@ import (
 	"fmt"
 	log "github.com/Miguel-Dorta/logolang"
 	"github.com/Miguel-Dorta/rtsp-recorder/pkg"
+	"github.com/Miguel-Dorta/rtsp-recorder/pkg/http_push"
 	"github.com/jessevdk/go-flags"
 	"os"
 	"strings"
@@ -14,6 +15,7 @@ var args struct {
 	Alias         string `short:"a" long:"alias" env:"CAMERA_ALIAS" description:"Camera alias"`
 	RecTimeMin    int    `short:"t" long:"time" env:"RECORDING_TIME" description:"Duration of each recording (in minutes)" default:"10"`
 	RecTimeoutSec int    `long:"timeout" env:"RECORDING_TIMEOUT" description:"Time before killing recording process (in seconds)" default:"60"`
+	ReportUrl     string `long:"report-url" env:"REPORT_URL" description:"URL to report the status of the program"`
 	SavingPath    string `short:"p" long:"path" env:"SAVING_PATH" description:"Path to save the recordings"`
 	URL           string `short:"u" long:"url" env:"RTSP_URL" description:"RTSP URL. It must start with rtsp://"`
 	Verbose       bool   `short:"v" long:"verbose" env:"VERBOSE" description:"Verbose output"`
@@ -58,5 +60,6 @@ func main() {
 	pkg.Conf.RecordingDuration = time.Minute * time.Duration(args.RecTimeMin)
 	pkg.Conf.Url = args.URL
 	pkg.Conf.Verbose = args.Verbose
-	os.Exit(pkg.Main())
+	http_push.Url = args.ReportUrl
+	pkg.Main()
 }
