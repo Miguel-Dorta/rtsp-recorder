@@ -67,6 +67,7 @@ func Main() {
 		case <-quit:
 			stop(instance)
 			postRecordOps(currentRecordPath, false)
+			os.Exit(0)
 		}
 	}
 }
