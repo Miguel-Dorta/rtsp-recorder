@@ -30,7 +30,7 @@ func init() {
 }
 
 func StartRecording(rtspUrl, rtspProto, recordPath string, recDuration, timeout time.Duration, verbose bool) (*Instance, error) {
-	ctx, _ := context.WithTimeout(context.Background(), recDuration+timeout)
+	ctx, cancelCtx := context.WithTimeout(context.Background(), recDuration+timeout)
 	cmd := exec.CommandContext(ctx, ffmpegPath,
 		"-nostdin",
 		"-rtsp_transport", rtspProto,
@@ -44,6 +44,7 @@ func StartRecording(rtspUrl, rtspProto, recordPath string, recDuration, timeout 
 	}
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
+		cancelCtx()
 		return nil, fmt.Errorf("cannot create stding pipe in ffmpeg instance: %w", err)
 	}
 
@@ -57,6 +58,7 @@ func StartRecording(rtspUrl, rtspProto, recordPath string, recDuration, timeout 
 	go func() {
 		instance.ExitChannel <- cmd.Run()
 		instance.isStopped = true
+		cancelCtx()
 	}()
 	go func() {
 		time.Sleep(recDuration)
