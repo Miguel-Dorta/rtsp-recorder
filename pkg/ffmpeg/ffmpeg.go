@@ -4,16 +4,19 @@ import (
 	"context"
 	"fmt"
 	"github.com/Miguel-Dorta/rtsp-recorder/pkg/log"
+	"golang.org/x/sys/unix"
 	"io"
 	"os"
 	"os/exec"
+	"strconv"
 	"time"
 )
 
 type Instance struct {
-	ExitChan chan error
-	cmd      *exec.Cmd
-	stdin    io.WriteCloser
+	ExitChannel chan error
+	cmd         *exec.Cmd
+	stdin       io.WriteCloser
+	isStopped   bool
 }
 
 var ffmpegPath string
@@ -26,43 +29,80 @@ func init() {
 	}
 }
 
-// NewInstance starts a new instance of FFMPEG with the args provided
-// Args:
-//   - url: RTSP URL
-//   - path: path of the file to save the recording
-//   - recDuration: duration of the recording
-//   - timeout: the extra time for finishing and saving. The instance will be killed at recDuration + timeout
-func NewInstance(url, path string, recDuration, timeout time.Duration, verbose bool) (*Instance, error) {
+func StartRecording(rtspUrl, rtspProto, recordPath string, recDuration, timeout time.Duration, verbose bool) (*Instance, error) {
 	ctx, _ := context.WithTimeout(context.Background(), recDuration+timeout)
-	cmd := exec.CommandContext(ctx, ffmpegPath, "-rtsp_transport", "tcp", "-i", url, "-c", "copy", path)
+	cmd := exec.CommandContext(ctx, ffmpegPath,
+		"-nostdin",
+		"-rtsp_transport", rtspProto,
+		"-t", strconv.Itoa(int(recDuration.Seconds())),
+		"-i", rtspUrl,
+		"-c", "copy",
+		recordPath)
 	if verbose {
 		cmd.Stderr = os.Stderr
 		cmd.Stdout = os.Stdout
 	}
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
-		return nil, fmt.Errorf("error creating stdin pipe in ffmpeg instance: %w", err)
+		return nil, fmt.Errorf("cannot create stding pipe in ffmpeg instance: %w", err)
 	}
 
-	exitChannel := make(chan error)
+	instance := &Instance{
+		ExitChannel: make(chan error),
+		cmd:         cmd,
+		stdin:       stdin,
+		isStopped:   false,
+	}
+
 	go func() {
-		if err := cmd.Run(); err != nil {
-			exitChannel <- err
+		instance.ExitChannel <- cmd.Run()
+		instance.isStopped = true
+	}()
+	go func() {
+		time.Sleep(recDuration)
+		if instance.isStopped {
+			return
 		}
-		close(exitChannel)
+		instance.Stop()
 	}()
 
-	return &Instance{
-		cmd:      cmd,
-		stdin:    stdin,
-		ExitChan: exitChannel,
-	}, nil
+	return instance, nil
 }
 
-// Stop tries to stop the instance gratefully. It is NON blocking. If it fails, it kills the instance.
-func (i *Instance) Stop() {
-	_, err := io.WriteString(i.stdin, "q")
+func (instance *Instance) Stop() {
+	_, err := instance.stdin.Write([]byte{'q'})
 	if err != nil {
-		i.cmd.Process.Kill()
+		log.Errorf("error writing exit command to ffmpeg instance: %s", err)
+		_ = instance.cmd.Process.Kill()
+		return
 	}
+
+	time.Sleep(time.Second)
+	if instance.isStopped {
+		return
+	}
+	if err = instance.stdin.Close(); err != nil {
+		log.Errorf("error closing stdin pipe of ffmpeg instance: %s", err)
+		_ = instance.cmd.Process.Kill()
+		return
+	}
+
+	time.Sleep(time.Second)
+	for i := 0; i < 2; i++ {
+		if instance.isStopped {
+			return
+		}
+		if err = instance.cmd.Process.Signal(unix.SIGINT); err != nil {
+			log.Errorf("error sending SIGINT to ffmpeg instance: %s", err)
+			_ = instance.cmd.Process.Kill()
+			return
+		}
+		time.Sleep(time.Second * 5)
+	}
+
+	if instance.isStopped {
+		return
+	}
+	log.Errorf("instance killed due to not stopping after multiple safe stop mechanisms")
+	_ = instance.cmd.Process.Kill()
 }
