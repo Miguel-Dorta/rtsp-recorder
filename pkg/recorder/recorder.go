@@ -30,7 +30,7 @@ func Start(savingPath, alias, url, proto string, recDuration, timeout time.Durat
 	filePathNoExt := filepath.Join(parentDir, fmt.Sprintf("%d-%02d-%02d_%02d-%02d-%02d",
 		now.Year(), now.Month(), now.Day(), now.Hour(), now.Minute(), now.Second()))
 
-	instance, err := ffmpeg.StartRecording(url, proto, filePathNoExt, recDuration, timeout, verbose)
+	instance, err := ffmpeg.StartRecording(url, proto, filePathNoExt+tmpFileExt, recDuration, timeout, verbose)
 	if err != nil {
 		return nil, fmt.Errorf("error starting ffmpeg recording: %w", err)
 	}
