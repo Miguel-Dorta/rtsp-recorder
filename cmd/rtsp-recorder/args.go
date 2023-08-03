@@ -28,7 +28,10 @@ var args struct {
 
 func ParseArgs() {
 	if _, err := flags.Parse(&args); err != nil {
-		log.Criticalf("error parsing args: %s", err)
+		if !flags.WroteHelp(err) {
+			log.Criticalf("error parsing args: %s", err)
+		}
+		os.Exit(0)
 	}
 	if args.Version {
 		fmt.Println(pkg.Version)
