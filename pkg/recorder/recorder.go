@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -50,7 +51,7 @@ func (r *Recorder) Wait(quit <-chan os.Signal) (exit bool) {
 		err = <-r.instance.ExitChannel
 	case err = <-r.instance.ExitChannel:
 	}
-	if err != nil {
+	if err != nil && !strings.HasPrefix(err.Error(), "exit status") {
 		log.Errorf("ffmpeg instance returned an error: %s", err)
 	}
 

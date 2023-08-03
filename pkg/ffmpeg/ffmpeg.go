@@ -49,15 +49,17 @@ func StartRecording(rtspUrl, rtspProto, recordPath string, recDuration, timeout 
 	}
 
 	instance := &Instance{
-		ExitChannel: make(chan error),
+		ExitChannel: make(chan error, 1),
 		cmd:         cmd,
 		stdin:       stdin,
 		isStopped:   false,
 	}
 
 	go func() {
-		instance.ExitChannel <- cmd.Run()
+		// Set "isStopped" to true before waking up listeners
+		err := cmd.Run()
 		instance.isStopped = true
+		instance.ExitChannel <- err
 		cancelCtx()
 	}()
 	go func() {
@@ -75,16 +77,6 @@ func (instance *Instance) Stop() {
 	_, err := instance.stdin.Write([]byte{'q'})
 	if err != nil {
 		log.Errorf("error writing exit command to ffmpeg instance: %s", err)
-		_ = instance.cmd.Process.Kill()
-		return
-	}
-
-	time.Sleep(time.Second)
-	if instance.isStopped {
-		return
-	}
-	if err = instance.stdin.Close(); err != nil {
-		log.Errorf("error closing stdin pipe of ffmpeg instance: %s", err)
 		_ = instance.cmd.Process.Kill()
 		return
 	}
